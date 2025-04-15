@@ -86,13 +86,13 @@ public class App extends JPanel {
                     case KeyEvent.VK_D ->
                         transformation("translate", 10, 0, 0);  // Translação para a direita
                     case KeyEvent.VK_Q ->
-                        transformation("rotationZ", -10);       // Rotação plana anti-horária
+                        transformation("rotationY", -10);       // Rotação plana anti-horária
                     case KeyEvent.VK_E ->
-                        transformation("rotationZ", 10);        // Rotação plana horária
+                        transformation("rotationY", 10);        // Rotação plana horária
                     case KeyEvent.VK_X ->
                         transformation("rotationX", 10);        // Rotação no eixo X
                     case KeyEvent.VK_C ->
-                        transformation("rotationY", 10);        // Rotação no eixo Y
+                        transformation("rotationX", -10);        // Rotação no eixo Y
                     case KeyEvent.VK_Z ->
                         transformation("rotationZ3D", 10);      // Rotação tridimensional no eixo Z
                     case KeyEvent.VK_DOWN ->
@@ -148,8 +148,6 @@ public class App extends JPanel {
                 transformationMatrix.setRotationX(params[0]); // Rotação no eixo X
             case "rotationY" ->
                 transformationMatrix.setRotationY(params[0]); // Rotação no eixo Y
-            case "rotationZ" ->
-                transformationMatrix.setRotationZ(params[0]); // Rotação plana no eixo Z
             case "rotationZ3D" ->
                 transformationMatrix.setRotationZ(params[0]); // Rotação tridimensional no eixo Z
             case "reflect" -> {
