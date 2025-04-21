@@ -6,6 +6,10 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.*;
@@ -31,6 +35,11 @@ public class App extends JPanel {
         viewMatrix = new Matrix4x4();
         viewMatrix.setIdentity();
         projectionMatrix.setPerspectiva(600); // Configura a matriz de perspectiva
+
+         // Adiciona o botão para carregar arquivo OBJ
+         JButton loadObjButton = new JButton("Carregar OBJ");
+         loadObjButton.addActionListener(e -> loadObjFile());
+         this.add(loadObjButton);
 
         this.addMouseListener(new MouseAdapter() {
             @Override
@@ -162,8 +171,117 @@ public class App extends JPanel {
 
         // Atualiza a matriz de visualização
         viewMatrix = viewMatrix.multiply(transformation);
-
+        // Aplica a transformação a todos os elementos carregados
+        // for (Element element : elements) {
+        //     element.transform(transformation);
+        // }
         repaint();
+    }
+
+     private void loadObjFile() {
+        new Thread(() -> {
+            JFileChooser fileChooser = new JFileChooser();
+            int result = fileChooser.showOpenDialog(this);
+
+            if (result == JFileChooser.APPROVE_OPTION) {
+                File file = fileChooser.getSelectedFile();
+                try {
+                    Element objElement = parseOBJ(file);
+                    elements.add(objElement);
+                    repaint();
+                } catch (IOException ex) {
+                    JOptionPane.showMessageDialog(this, "Erro ao carregar o arquivo OBJ: " + ex.getMessage(),
+                            "Erro", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+            // Garante que o foco retorne à janela principal
+        SwingUtilities.invokeLater(this::requestFocusInWindow);
+        }).start();
+    }
+
+    private Element parseOBJ(File file) throws IOException {
+        List<Ponto3D> vertices = new ArrayList<>();
+        List<Triangulo3D> triangulos = new ArrayList<>();
+    
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.startsWith("v ")) {
+                    // Lê os vértices
+                    String[] parts = line.split("\\s+");
+                    float x = Float.parseFloat(parts[1]);
+                    float y = Float.parseFloat(parts[2]);
+                    float z = Float.parseFloat(parts[3]);
+                    vertices.add(new Ponto3D(x, y, z));
+                } else if (line.startsWith("f ")) {
+                    // Lê as faces e converte para triângulos
+                    String[] parts = line.split("\\s+");
+                    List<Integer> faceIndices = new ArrayList<>();
+                    for (int i = 1; i < parts.length; i++) {
+                        String[] vertexData = parts[i].split("/");
+                        int vertexIndex = Integer.parseInt(vertexData[0]);
+                        if (vertexIndex < 0) {
+                            vertexIndex = vertices.size() + vertexIndex + 1; // Índices negativos
+                        }
+                        faceIndices.add(vertexIndex - 1); // Corrige para índice baseado em 0
+                    }
+                    // Divide faces com mais de 3 vértices em triângulos
+                    for (int i = 1; i < faceIndices.size() - 1; i++) {
+                        triangulos.add(new Triangulo3D(
+                                vertices.get(faceIndices.get(0)),
+                                vertices.get(faceIndices.get(i)),
+                                vertices.get(faceIndices.get(i + 1))
+                        ));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            throw new IOException("Erro ao processar o arquivo OBJ: " + e.getMessage());
+        }
+    
+        Element objElement = new Element(triangulos);
+        centerElementInClippingArea(objElement);
+        return objElement;
+    }
+
+    private void centerElementInClippingArea(Element element) {
+        if (clipper == null) {
+            // Se o clipper for null, não centraliza o objeto
+            return;
+        }
+
+        // Calcula o centro do objeto
+        float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, minZ = Float.MAX_VALUE;
+        float maxX = Float.MIN_VALUE, maxY = Float.MIN_VALUE, maxZ = Float.MIN_VALUE;
+
+        for (Triangulo3D triangulo : element.getTriangulos()) {
+            for (Ponto3D ponto : new Ponto3D[]{triangulo.p1, triangulo.p2, triangulo.p3}) {
+                minX = Math.min(minX, ponto.x);
+                minY = Math.min(minY, ponto.y);
+                minZ = Math.min(minZ, ponto.z);
+                maxX = Math.max(maxX, ponto.x);
+                maxY = Math.max(maxY, ponto.y);
+                maxZ = Math.max(maxZ, ponto.z);
+            }
+        }
+
+        float centerX = (minX + maxX) / 2;
+        float centerY = (minY + maxY) / 2;
+        float centerZ = (minZ + maxZ) / 2;
+
+        // Translada o objeto para o centro da área de clipping
+        float translateX = (clipper.getXMin() + clipper.getXMax()) / 2 - centerX;
+        float translateY = (clipper.getYMin() + clipper.getYMax()) / 2 - centerY;
+        float translateZ = 0 - centerZ; // Centraliza no plano Z
+
+        Matrix4x4 translationMatrix = new Matrix4x4();
+        translationMatrix.setIdentity();
+        translationMatrix.mat[0][3] = translateX;
+        translationMatrix.mat[1][3] = translateY;
+        translationMatrix.mat[2][3] = translateZ;
+
+        element.transform(translationMatrix);
     }
 
     private Element createCube(float x, float y, float z, float size) {
@@ -198,6 +316,10 @@ public class App extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
+
+        // Define o fundo da tela
+        g.setColor(Color.WHITE);
+        g.fillRect(0, 0, getWidth(), getHeight());
 
         int squareSize = Math.min(getWidth(), getHeight()) - 100;
         int xMin = (getWidth() - squareSize) / 2;
