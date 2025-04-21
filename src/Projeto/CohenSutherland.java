@@ -1,11 +1,11 @@
-package Bresenham;
+package Projeto;
 
 public class CohenSutherland {
-    private static final int INSIDE = 0; // 0000
-    private static final int LEFT = 1;   // 0001
-    private static final int RIGHT = 2;  // 0010
-    private static final int BOTTOM = 4; // 0100
-    private static final int TOP = 8;    // 1000
+    private static final int INSIDE = 0; 
+    private static final int LEFT = 1;  
+    private static final int RIGHT = 2; 
+    private static final int BOTTOM = 4; 
+    private static final int TOP = 8;    
 
     private int xMin, yMin, xMax, yMax;
 

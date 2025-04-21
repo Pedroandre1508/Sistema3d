@@ -1,4 +1,4 @@
-package Bresenham;
+package Projeto;
 
 import java.awt.Graphics;
 

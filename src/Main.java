@@ -1,5 +1,5 @@
 
-import Bresenham.App;
+import Projeto.App;
 import javax.swing.JFrame;
 
 public class Main {
@@ -13,3 +13,4 @@ public class Main {
         frame.setVisible(true);
     }
 }
+
