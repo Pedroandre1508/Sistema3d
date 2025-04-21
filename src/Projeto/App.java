@@ -34,7 +34,7 @@ public class App extends JPanel {
         projectionMatrix = new Matrix4x4();
         viewMatrix = new Matrix4x4();
         viewMatrix.setIdentity();
-        projectionMatrix.setPerspectiva(600); // Configura a matriz de perspectiva
+        projectionMatrix.setPerspectiva(1000); // Configura a matriz de perspectiva
 
          // Adiciona o botão para carregar arquivo OBJ
          JButton loadObjButton = new JButton("Carregar OBJ");
@@ -171,10 +171,6 @@ public class App extends JPanel {
 
         // Atualiza a matriz de visualização
         viewMatrix = viewMatrix.multiply(transformation);
-        // Aplica a transformação a todos os elementos carregados
-        // for (Element element : elements) {
-        //     element.transform(transformation);
-        // }
         repaint();
     }
 
@@ -246,11 +242,6 @@ public class App extends JPanel {
     }
 
     private void centerElementInClippingArea(Element element) {
-        if (clipper == null) {
-            // Se o clipper for null, não centraliza o objeto
-            return;
-        }
-
         // Calcula o centro do objeto
         float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, minZ = Float.MAX_VALUE;
         float maxX = Float.MIN_VALUE, maxY = Float.MIN_VALUE, maxZ = Float.MIN_VALUE;
@@ -271,8 +262,8 @@ public class App extends JPanel {
         float centerZ = (minZ + maxZ) / 2;
 
         // Translada o objeto para o centro da área de clipping
-        float translateX = (clipper.getXMin() + clipper.getXMax()) / 2 - centerX;
-        float translateY = (clipper.getYMin() + clipper.getYMax()) / 2 - centerY;
+        float translateX = (clipper.getXMin() + clipper.getXMax()) / 12 - centerX;
+        float translateY = (clipper.getYMin() + clipper.getYMax()) / 12 - centerY;
         float translateZ = 0 - centerZ; // Centraliza no plano Z
 
         Matrix4x4 translationMatrix = new Matrix4x4();
@@ -282,6 +273,7 @@ public class App extends JPanel {
         translationMatrix.mat[2][3] = translateZ;
 
         element.transform(translationMatrix);
+
     }
 
     private Element createCube(float x, float y, float z, float size) {
@@ -332,7 +324,7 @@ public class App extends JPanel {
         g.setColor(Color.ORANGE);
         g.drawRect(clipper.getXMin(), clipper.getYMin(), clipper.getXMax() - clipper.getXMin(), clipper.getYMax() - clipper.getYMin());
 
-        g.setColor(Color.BLACK);
+        g.setColor(Color.GRAY);
         for (Element element : elements) {
             for (Triangulo3D triangulo : element.getTriangulos()) {
                 drawTriangle(g, triangulo);
@@ -379,6 +371,7 @@ public class App extends JPanel {
 
     private Ponto3D projectPoint(Ponto3D point) {
         float[] projected = projectionMatrix.multiply(point.toArray());
+        if (projected[3] == 0) projected[3] = 1; // Evita divisão por zero
         float x = (projected[0] / projected[3]) + (getWidth() / 2.0f);
         float y = (projected[1] / projected[3]) + (getHeight() / 2.0f);
         float z = projected[2] / projected[3];
