@@ -6,12 +6,15 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.swing.*;
 
 public class App extends JPanel {
@@ -26,6 +29,7 @@ public class App extends JPanel {
     private Matrix4x4 viewMatrix;
     private int focusX = -1;
     private int focusY = -1;
+    private BufferedImage renderBuffer;
 
     public App() {
         clipper = null;
@@ -36,10 +40,10 @@ public class App extends JPanel {
         viewMatrix.setIdentity();
         projectionMatrix.setPerspectiva(1000); // Configura a matriz de perspectiva
 
-         // Adiciona o botão para carregar arquivo OBJ
-         JButton loadObjButton = new JButton("Carregar OBJ");
-         loadObjButton.addActionListener(e -> loadObjFile());
-         this.add(loadObjButton);
+        // Adiciona o botão para carregar arquivo OBJ
+        JButton loadObjButton = new JButton("Carregar OBJ");
+        loadObjButton.addActionListener(e -> loadObjFile());
+        this.add(loadObjButton);
 
         this.addMouseListener(new MouseAdapter() {
             @Override
@@ -113,14 +117,14 @@ public class App extends JPanel {
                     case KeyEvent.VK_T ->
                         transformation("reflect", 0, 1, 0);     // Reflexão no eixo Y
                     case KeyEvent.VK_Y ->
-                        transformation("shear", -0.5f, 0, 1);   
+                        transformation("shear", -0.5f, 0, 1);
                     case KeyEvent.VK_U ->
                         transformation("shear", 0.5f, 0, 0, 0, 0, 0);
                 }
             }
         });
 
-        Timer timer = new Timer(1000 / 60, e -> {
+        Timer timer = new Timer(1000 / 30, e -> {
             long currentTime = System.nanoTime();
             frames++;
             if (currentTime - lastTime >= 1000000000) {
@@ -171,10 +175,12 @@ public class App extends JPanel {
 
         // Atualiza a matriz de visualização
         viewMatrix = viewMatrix.multiply(transformation);
+        invalidateProjectionCache();
+        renderBuffer = null; // Invalida o buffer
         repaint();
     }
 
-     private void loadObjFile() {
+    private void loadObjFile() {
         new Thread(() -> {
             JFileChooser fileChooser = new JFileChooser();
             int result = fileChooser.showOpenDialog(this);
@@ -190,15 +196,14 @@ public class App extends JPanel {
                             "Erro", JOptionPane.ERROR_MESSAGE);
                 }
             }
-            // Garante que o foco retorne à janela principal
-        SwingUtilities.invokeLater(this::requestFocusInWindow);
+            SwingUtilities.invokeLater(this::requestFocusInWindow);
         }).start();
     }
 
     private Element parseOBJ(File file) throws IOException {
         List<Ponto3D> vertices = new ArrayList<>();
         List<Triangulo3D> triangulos = new ArrayList<>();
-    
+
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -235,7 +240,7 @@ public class App extends JPanel {
         } catch (Exception e) {
             throw new IOException("Erro ao processar o arquivo OBJ: " + e.getMessage());
         }
-    
+
         Element objElement = new Element(triangulos);
         centerElementInClippingArea(objElement);
         return objElement;
@@ -309,6 +314,19 @@ public class App extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
 
+        if (renderBuffer == null) {
+            renderBuffer = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_ARGB);
+            renderScene(renderBuffer.getGraphics());
+        }
+
+        g.drawImage(renderBuffer, 0, 0, null);
+
+        // Exibe o FPS no canto superior esquerdo
+        g.setColor(Color.BLACK);
+        g.drawString("FPS: " + fps, 10, 20);
+    }
+
+    private void renderScene(Graphics g) {
         // Define o fundo da tela
         g.setColor(Color.WHITE);
         g.fillRect(0, 0, getWidth(), getHeight());
@@ -335,9 +353,6 @@ public class App extends JPanel {
             g.setColor(Color.RED);
             g.fillRect(focusX - 2, focusY - 2, 5, 5);
         }
-
-        g.setColor(Color.BLACK);
-        g.drawString("FPS: " + fps, 10, 20);
     }
 
     private void drawTriangle(Graphics g, Triangulo3D triangle) {
@@ -369,12 +384,27 @@ public class App extends JPanel {
         return new Ponto3D(transformed[0] / transformed[3], transformed[1] / transformed[3], transformed[2] / transformed[3]);
     }
 
+    private Map<Ponto3D, Ponto3D> projectionCache = new HashMap<>();
+
     private Ponto3D projectPoint(Ponto3D point) {
+        if (projectionCache.containsKey(point)) {
+            return projectionCache.get(point);
+        }
+
         float[] projected = projectionMatrix.multiply(point.toArray());
-        if (projected[3] == 0) projected[3] = 1; // Evita divisão por zero
-        float x = (projected[0] / projected[3]) + (getWidth() / 2.0f);
+        if (projected[3] == 0) {
+            projected[3] = 1; // Evita divisão por zero
+
+                }float x = (projected[0] / projected[3]) + (getWidth() / 2.0f);
         float y = (projected[1] / projected[3]) + (getHeight() / 2.0f);
         float z = projected[2] / projected[3];
-        return new Ponto3D(x, y, z);
+        Ponto3D result = new Ponto3D(x, y, z);
+
+        projectionCache.put(point, result);
+        return result;
+    }
+
+    private void invalidateProjectionCache() {
+        projectionCache.clear();
     }
 }
