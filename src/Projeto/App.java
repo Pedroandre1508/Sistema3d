@@ -120,11 +120,16 @@ public class App extends JPanel {
                         transformation("shear", -0.5f, 0, 1);
                     case KeyEvent.VK_U ->
                         transformation("shear", 0.5f, 0, 0, 0, 0, 0);
+                    case KeyEvent.VK_L -> {
+                        elements.clear(); // Remove todos os elementos
+                        renderBuffer = null; // Invalida o buffer de renderização
+                        repaint(); // Atualiza a tela
+                    }
                 }
             }
         });
 
-        Timer timer = new Timer(1000 / 30, e -> {
+        Timer timer = new Timer(1000 / 500, e -> {
             long currentTime = System.nanoTime();
             frames++;
             if (currentTime - lastTime >= 1000000000) {
@@ -395,7 +400,8 @@ public class App extends JPanel {
         if (projected[3] == 0) {
             projected[3] = 1; // Evita divisão por zero
 
-                }float x = (projected[0] / projected[3]) + (getWidth() / 2.0f);
+        }
+        float x = (projected[0] / projected[3]) + (getWidth() / 2.0f);
         float y = (projected[1] / projected[3]) + (getHeight() / 2.0f);
         float z = projected[2] / projected[3];
         Ponto3D result = new Ponto3D(x, y, z);
